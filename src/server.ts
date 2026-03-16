@@ -3,8 +3,12 @@ import { env } from './config/env';
 
 const app = createApp();
 
-app.listen(env.port, () => {
-  // eslint-disable-next-line no-console
-  console.log(`API listening on http://localhost:${env.port}`);
-});
+if (process.env.VERCEL !== '1') {
+  app.listen(env.port, () => {
+    // eslint-disable-next-line no-console
+    console.log(`API listening on http://localhost:${env.port}`);
+  });
+}
+
+export default app;
 
