@@ -50,9 +50,13 @@ export async function getStats(_req: Request, res: Response) {
   res.json(stats);
 }
 
+function paramId(req: Request): string {
+  const id = req.params.id;
+  return Array.isArray(id) ? id[0]! : id;
+}
+
 export async function getById(req: Request, res: Response) {
-  const { id } = req.params;
-  const lead = await getLeadById(id);
+  const lead = await getLeadById(paramId(req));
   res.json(lead);
 }
 
@@ -63,7 +67,6 @@ export async function create(req: Request, res: Response) {
 }
 
 export async function update(req: Request, res: Response) {
-  const { id } = req.params;
   const body = updateLeadSchema.parse(req.body);
   const emailRepliedAt =
     body.emailRepliedAt === null
@@ -71,7 +74,7 @@ export async function update(req: Request, res: Response) {
       : body.emailRepliedAt
         ? new Date(body.emailRepliedAt)
         : undefined;
-  const lead = await updateLead(id, {
+  const lead = await updateLead(paramId(req), {
     ...(emailRepliedAt !== undefined && { emailRepliedAt }),
     ...(body.status !== undefined && { status: body.status }),
   });
@@ -79,7 +82,6 @@ export async function update(req: Request, res: Response) {
 }
 
 export async function remove(req: Request, res: Response) {
-  const { id } = req.params;
-  await deleteLead(id);
+  await deleteLead(paramId(req));
   res.status(204).send();
 }
