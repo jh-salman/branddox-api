@@ -1,50 +1,81 @@
-import express, { Request, Response } from 'express';
-import cors from 'cors';
-import { authRouter } from './modules/auth/auth.routes';
-import { leadsRouter } from './modules/leads/leads.routes';
+import express, { Application, Request, Response } from 'express';
+import { config } from './config';
+import { authRouter } from './modules/auth/auth.router';
+import { clientsRouter } from './modules/clients/clients.router';
+import { leadsRouter } from './modules/leads/leads.router';
+import { portfolioRouter } from './modules/portfolio/portfolio.router';
+import { servicesRouter } from './modules/services/services.router';
+import { uploadRouter } from './modules/upload/upload.router';
 import { errorHandler } from './middleware/errorHandler';
 
-export function createApp() {
-  const app = express();
+export const app: Application = express();
 
-  app.use(cors());
-  app.use(express.json());
+const primaryOrigin = config.allowedOrigins[0] ?? 'https://branddox-web.vercel.app';
 
-  app.get('/health', (_req, res) => {
-    res.json({ ok: true });
-  });
-
-  app.get('/api', (_req: Request, res: Response) => {
-    res.json({
-      name: 'Branddox API',
-      version: '1.0',
-      endpoints: {
-        health: 'GET /health',
-        auth: {
-          register: 'POST /auth/register',
-          login: 'POST /auth/login',
-        },
-        leads: {
-          list: 'GET /leads?limit=&offset=&status=&leadSource=&replied=',
-          stats: 'GET /leads/stats',
-          get: 'GET /leads/:id',
-          create: 'POST /leads',
-          update: 'PATCH /leads/:id',
-          delete: 'DELETE /leads/:id',
-        },
-      },
-    });
-  });
-
-  app.use('/auth', authRouter);
-  app.use('/leads', leadsRouter);
-
-  app.use((_req, res) => {
-    res.status(404).json({ error: 'Not found' });
-  });
-
-  app.use(errorHandler);
-
-  return app;
+function isAllowedOrigin(origin: string | undefined): boolean {
+  if (!origin) return false;
+  if (config.allowedOrigins.includes(origin)) return true;
+  if (origin.startsWith('https://branddox-web') && origin.endsWith('.vercel.app')) return true;
+  return false;
 }
 
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowOrigin = origin && isAllowedOrigin(origin) ? origin : primaryOrigin;
+  res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
+app.use(express.json());
+
+app.get('/health', (_req, res) => {
+  res.json({ ok: true });
+});
+
+app.get('/api', (_req: Request, res: Response) => {
+  res.json({
+    name: 'Branddox API',
+    version: '1.0',
+    endpoints: {
+      health: 'GET /health',
+      auth: { register: 'POST /auth/register', login: 'POST /auth/login' },
+      leads: { list: 'GET /leads', stats: 'GET /leads/stats', get: 'GET /leads/:id', create: 'POST /leads', update: 'PATCH /leads/:id', delete: 'DELETE /leads/:id' },
+      portfolio: {
+        list: 'GET /portfolio',
+        youtubeThumbnails: 'POST /portfolio/youtube-thumbnails (admin; dryRun or import)',
+        get: 'GET /portfolio/:id',
+        create: 'POST /portfolio',
+        update: 'PATCH|PUT /portfolio/:id',
+        delete: 'DELETE /portfolio/:id',
+      },
+      services: { list: 'GET /services', get: 'GET /services/:id', create: 'POST /services', update: 'PATCH|PUT /services/:id', delete: 'DELETE /services/:id' },
+      clients: {
+        list: 'GET /clients',
+        get: 'GET /clients/:id',
+        resolveYoutube: 'POST /clients/resolve-youtube (admin)',
+        create: 'POST /clients',
+        update: 'PATCH|PUT /clients/:id',
+        delete: 'DELETE /clients/:id',
+      },
+      upload: 'POST /upload (multipart, field: image)',
+    },
+  });
+});
+
+app.use('/auth', authRouter);
+app.use('/leads', leadsRouter);
+app.use('/portfolio', portfolioRouter);
+app.use('/services', servicesRouter);
+app.use('/clients', clientsRouter);
+app.use('/upload', uploadRouter);
+
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+app.use(errorHandler);

@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  
 }
 
 model User {
@@ -27,5 +28,42 @@ model Lead {
   message         String?
   status          String    @default("new")
   emailRepliedAt  DateTime? // when you replied to this lead (null = not replied yet)
+}
+
+model Portfolio {
+  id          String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  title       String?  // optional – portfolio is image-only
+  category    String
+  imageUrl    String   // Cloudinary or any full URL
+  aspectClass String   @default("square") // tall | square | wide | xtall
+  width       Int?
+  height      Int?
+  youtubeVideoId String? @unique // dedupe YouTube imports
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  title       String
+  description String
+  benefit     String   // e.g. "→ Stand out in feeds"
+  sortOrder    Int      @default(0)
+}
+
+model Client {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  slug          String   @unique // URL segment: /portfolio/channels/[slug]
+  channelName   String   // YouTube channel name
+  channelUrl    String   // YouTube channel URL
+  imageUrl      String   // client showcase image (thumbnail/banner)
+  logoUrl       String?  // small brand/channel logo for ticker/marquee
+  subscriberCount String? // e.g. "50K"
+  description   String?  // optional tagline
+  sortOrder     Int      @default(0)
+  portfolios    Portfolio[]
 }
 

@@ -1,7 +1,9 @@
 node_modules/
 dist/
 api/
+uploads/
 .env
 .env.local
 *.log
 .DS_Store
+.vercel

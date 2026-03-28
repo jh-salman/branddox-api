@@ -1,0 +1,19 @@
+# Local PostgreSQL for development (optional).
+# Usage: docker compose up -d
+# Then set DATABASE_URL in .env to:
+# postgresql://postgres:postgres@localhost:5432/branddox
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: branddox
+    ports:
+      - "5432:5432"
+    volumes:
+      - branddox_pgdata:/var/lib/postgresql/data
+
+volumes:
+  branddox_pgdata:

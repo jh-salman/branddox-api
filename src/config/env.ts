@@ -3,7 +3,12 @@ import 'dotenv/config';
 export const env = {
   port: process.env.PORT ? Number(process.env.PORT) : 4000,
   databaseUrl: process.env.DATABASE_URL ?? '',
-  authSecret: process.env.AUTH_SECRET ?? 'dev-secret-change-me'
+  authSecret: process.env.AUTH_SECRET ?? 'dev-secret-change-me',
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME ?? '',
+    apiKey: process.env.CLOUDINARY_API_KEY ?? '',
+    apiSecret: process.env.CLOUDINARY_API_SECRET ?? '',
+  },
 };
 
 if (!env.databaseUrl) {
