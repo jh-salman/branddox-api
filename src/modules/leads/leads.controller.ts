@@ -21,6 +21,9 @@ const createLeadSchema = z.object({
 const updateLeadSchema = z.object({
   emailRepliedAt: z.union([z.string(), z.null()]).optional(),
   status: z.string().optional(),
+  // Allow manually setting/changing an email (e.g. a business email collected from YouTube),
+  // or clearing it with an empty string / null.
+  email: z.union([z.string().email(), z.literal(''), z.null()]).optional(),
 });
 
 const listQuerySchema = z.object({
@@ -74,9 +77,11 @@ export async function update(req: Request, res: Response) {
       : body.emailRepliedAt
         ? new Date(body.emailRepliedAt)
         : undefined;
+  const email = body.email === undefined ? undefined : body.email ? body.email : null;
   const lead = await updateLead(paramId(req), {
     ...(emailRepliedAt !== undefined && { emailRepliedAt }),
     ...(body.status !== undefined && { status: body.status }),
+    ...(email !== undefined && { email }),
   });
   res.json(lead);
 }

@@ -6,6 +6,8 @@ import { leadsRouter } from './modules/leads/leads.router';
 import { portfolioRouter } from './modules/portfolio/portfolio.router';
 import { servicesRouter } from './modules/services/services.router';
 import { uploadRouter } from './modules/upload/upload.router';
+import { youtubeRouter } from './modules/youtube/youtube.router';
+import { campaignsRouter } from './modules/campaigns/campaigns.router';
 import { errorHandler } from './middleware/errorHandler';
 
 export const app: Application = express();
@@ -63,6 +65,22 @@ app.get('/api', (_req: Request, res: Response) => {
         delete: 'DELETE /clients/:id',
       },
       upload: 'POST /upload (multipart, field: image)',
+      youtube: {
+        searchChannels: 'POST /youtube/search-channels (admin; keyword + country + subscriber filters + email)',
+        saveLeads: 'POST /youtube/save-leads (admin; bulk-save channels as leads, deduped by channelId)',
+        enrichLeads: 'POST /youtube/enrich-leads (admin; fill missing emails on saved leads via description + linked sites)',
+      },
+      campaigns: {
+        config: 'GET /campaigns/config (admin; whether OpenAI + SMTP are configured)',
+        verifySmtp: 'POST /campaigns/verify-smtp (admin; test SMTP connection)',
+        list: 'GET /campaigns (admin)',
+        create: 'POST /campaigns (admin; {leadIds, name} → AI drafts best-fit service + email per lead)',
+        get: 'GET /campaigns/:id (admin; campaign + recipients)',
+        editRecipient: 'PATCH /campaigns/:id/recipients/:recipientId (admin; edit subject/body/status)',
+        deepRecipient: 'POST /campaigns/:id/recipients/:recipientId/deep (admin; re-draft with deep analysis)',
+        send: 'POST /campaigns/:id/send (admin; send approved recipients via SMTP, throttled)',
+        delete: 'DELETE /campaigns/:id (admin)',
+      },
     },
   });
 });
@@ -73,6 +91,8 @@ app.use('/portfolio', portfolioRouter);
 app.use('/services', servicesRouter);
 app.use('/clients', clientsRouter);
 app.use('/upload', uploadRouter);
+app.use('/youtube', youtubeRouter);
+app.use('/campaigns', campaignsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });

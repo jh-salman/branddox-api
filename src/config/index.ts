@@ -26,6 +26,25 @@ export const config = {
     apiSecret: process.env.CLOUDINARY_API_SECRET ?? '',
   },
   youtubeApiKey: process.env.GOOGLE_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || '',
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+    /** Cheap model for bulk service-match + personalized drafts. */
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    /** Higher-reasoning model for single-lead deep analysis. */
+    deepModel: process.env.OPENAI_DEEP_MODEL || 'gpt-4o',
+  },
+  smtp: {
+    host: process.env.SMTP_HOST || '',
+    port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587,
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    /** From header, e.g. "Braddox <hello@branddox.com>". Falls back to SMTP_USER. */
+    from: process.env.SMTP_FROM || process.env.SMTP_USER || '',
+    /** Optional per-run cap and delay to protect sender reputation. */
+    maxPerRun: process.env.SMTP_MAX_PER_RUN ? Number(process.env.SMTP_MAX_PER_RUN) : 100,
+    throttleMs: process.env.SMTP_THROTTLE_MS ? Number(process.env.SMTP_THROTTLE_MS) : 1500,
+  },
 };
 
 if (!config.databaseUrl) {

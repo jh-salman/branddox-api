@@ -5,7 +5,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  
 }
 
 model User {
@@ -21,27 +20,74 @@ model Lead {
   id              String    @id @default(cuid())
   createdAt       DateTime  @default(now())
   name            String?
-  email           String
+  email           String? // optional: scraped YouTube channels may have no public email
   channelUrl      String
+  channelId       String?   @unique // YouTube channel id; used to dedupe scraped leads
+  channelName     String? // channel title when sourced from search
+  subscriberCount String? // human-readable subscriber count, e.g. "50,000"
+  country         String? // ISO 3166-1 alpha-2 country code
+  thumbnailUrl    String? // channel avatar
   leadSource      String
   service         String?
   message         String?
   status          String    @default("new")
   emailRepliedAt  DateTime? // when you replied to this lead (null = not replied yet)
+
+  campaignRecipients CampaignRecipient[]
+
+  @@index([leadSource])
+  @@index([status])
+}
+
+model Campaign {
+  id         String              @id @default(cuid())
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  name       String
+  // draft = drafting/reviewing, sending = send in progress, sent = finished
+  status     String              @default("draft")
+  recipients CampaignRecipient[]
+
+  @@index([status])
+}
+
+model CampaignRecipient {
+  id                 String    @id @default(cuid())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  campaignId         String
+  campaign           Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  leadId             String
+  lead               Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  email              String
+  channelName        String?
+  recommendedService String? // AI-picked best-fit service title
+  aiReason           String? // short rationale for the match
+  confidence         Int? // 0-100 model confidence
+  subject            String
+  body               String    @db.Text
+  // draft | approved | skipped | queued | sent | failed
+  status             String    @default("draft")
+  sentAt             DateTime?
+  error              String?
+
+  @@unique([campaignId, leadId])
+  @@index([campaignId])
+  @@index([status])
 }
 
 model Portfolio {
-  id          String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  title       String?  // optional – portfolio is image-only
-  category    String
-  imageUrl    String   // Cloudinary or any full URL
-  aspectClass String   @default("square") // tall | square | wide | xtall
-  width       Int?
-  height      Int?
-  youtubeVideoId String? @unique // dedupe YouTube imports
-  clientId    String?
-  client      Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  title          String? // optional – portfolio is image-only
+  category       String
+  imageUrl       String // Cloudinary or any full URL
+  aspectClass    String   @default("square") // tall | square | wide | xtall
+  width          Int?
+  height         Int?
+  youtubeVideoId String?  @unique // dedupe YouTube imports
+  clientId       String?
+  client         Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
 }
 
 model Service {
@@ -49,21 +95,20 @@ model Service {
   createdAt   DateTime @default(now())
   title       String
   description String
-  benefit     String   // e.g. "→ Stand out in feeds"
-  sortOrder    Int      @default(0)
+  benefit     String // e.g. "→ Stand out in feeds"
+  sortOrder   Int      @default(0)
 }
 
 model Client {
-  id            String   @id @default(cuid())
-  createdAt     DateTime @default(now())
-  slug          String   @unique // URL segment: /portfolio/channels/[slug]
-  channelName   String   // YouTube channel name
-  channelUrl    String   // YouTube channel URL
-  imageUrl      String   // client showcase image (thumbnail/banner)
-  logoUrl       String?  // small brand/channel logo for ticker/marquee
+  id              String      @id @default(cuid())
+  createdAt       DateTime    @default(now())
+  slug            String      @unique // URL segment: /portfolio/channels/[slug]
+  channelName     String // YouTube channel name
+  channelUrl      String // YouTube channel URL
+  imageUrl        String // client showcase image (thumbnail/banner)
+  logoUrl         String? // small brand/channel logo for ticker/marquee
   subscriberCount String? // e.g. "50K"
-  description   String?  // optional tagline
-  sortOrder     Int      @default(0)
-  portfolios    Portfolio[]
+  description     String? // optional tagline
+  sortOrder       Int         @default(0)
+  portfolios      Portfolio[]
 }
-

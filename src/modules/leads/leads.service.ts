@@ -11,6 +11,16 @@ export interface CreateLeadInput {
   message?: string | null;
 }
 
+export interface SaveChannelLeadInput {
+  channelId?: string | null;
+  channelUrl: string;
+  name?: string | null;
+  email?: string | null;
+  subscriberCount?: string | null;
+  country?: string | null;
+  thumbnailUrl?: string | null;
+}
+
 export interface ListLeadsFilters {
   limit?: number;
   offset?: number;
@@ -42,6 +52,48 @@ export async function createLead(input: CreateLeadInput) {
   return lead;
 }
 
+/**
+ * Bulk-save scraped YouTube channels as leads. Deduped by channelId (unique) when present,
+ * otherwise by channelUrl within the given source. Returns counts + created rows.
+ */
+export async function saveChannelLeads(channels: SaveChannelLeadInput[], leadSource: string) {
+  let created = 0;
+  let skipped = 0;
+  const items: Array<{ id: string; channelUrl: string; channelName: string | null }> = [];
+
+  for (const ch of channels) {
+    const channelId = ch.channelId?.trim() || null;
+    const channelUrl = ch.channelUrl.trim();
+
+    const existing = channelId
+      ? await prisma.lead.findUnique({ where: { channelId } })
+      : await prisma.lead.findFirst({ where: { channelUrl, leadSource } });
+
+    if (existing) {
+      skipped += 1;
+      continue;
+    }
+
+    const lead = await prisma.lead.create({
+      data: {
+        name: ch.name?.trim() || null,
+        channelName: ch.name?.trim() || null,
+        email: ch.email?.trim() || null,
+        channelUrl,
+        channelId,
+        subscriberCount: ch.subscriberCount?.trim() || null,
+        country: ch.country?.trim()?.toUpperCase() || null,
+        thumbnailUrl: ch.thumbnailUrl?.trim() || null,
+        leadSource,
+      },
+    });
+    created += 1;
+    items.push({ id: lead.id, channelUrl: lead.channelUrl, channelName: lead.channelName });
+  }
+
+  return { created, skipped, total: channels.length, items };
+}
+
 export async function listLeads(filters: ListLeadsFilters = {}) {
   const { limit = 50, offset = 0, status, leadSource, replied } = filters;
   const where: Record<string, unknown> = {};
@@ -67,15 +119,33 @@ export async function getLeadById(id: string) {
   return prisma.lead.findUniqueOrThrow({ where: { id } });
 }
 
+/** Leads that still have no email — candidates for automated email enrichment. */
+export async function listLeadsMissingEmail(limit = 100) {
+  return prisma.lead.findMany({
+    where: { email: null, channelId: { not: null } },
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(Math.max(limit, 1), 500),
+  });
+}
+
+export async function countLeadsMissingEmail() {
+  return prisma.lead.count({ where: { email: null } });
+}
+
+export async function setLeadEmail(id: string, email: string) {
+  return prisma.lead.update({ where: { id }, data: { email } });
+}
+
 export async function updateLead(
   id: string,
-  data: { emailRepliedAt?: Date | null; status?: string }
+  data: { emailRepliedAt?: Date | null; status?: string; email?: string | null }
 ) {
   return prisma.lead.update({
     where: { id },
     data: {
       ...(data.emailRepliedAt !== undefined && { emailRepliedAt: data.emailRepliedAt }),
       ...(data.status !== undefined && { status: data.status }),
+      ...(data.email !== undefined && { email: data.email }),
     },
   });
 }
