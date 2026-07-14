@@ -24,9 +24,19 @@ export interface SaveChannelLeadInput {
 export interface ListLeadsFilters {
   limit?: number;
   offset?: number;
+  page?: number;
   status?: string;
   leadSource?: string;
   replied?: boolean; // true = has emailRepliedAt, false = not replied
+}
+
+export interface ListLeadsResult {
+  items: Awaited<ReturnType<typeof prisma.lead.findMany>>;
+  total: number;
+  limit: number;
+  offset: number;
+  page: number;
+  totalPages: number;
 }
 
 export async function createLead(input: CreateLeadInput) {
@@ -94,25 +104,40 @@ export async function saveChannelLeads(channels: SaveChannelLeadInput[], leadSou
   return { created, skipped, total: channels.length, items };
 }
 
-export async function listLeads(filters: ListLeadsFilters = {}) {
-  const { limit = 50, offset = 0, status, leadSource, replied } = filters;
+export async function listLeads(filters: ListLeadsFilters = {}): Promise<ListLeadsResult> {
+  const { status, leadSource, replied } = filters;
+  const limit = Math.min(Math.max(filters.limit ?? 25, 1), 100);
+
   const where: Record<string, unknown> = {};
   if (status) where.status = status;
   if (leadSource) where.leadSource = leadSource;
   if (replied === true) where.emailRepliedAt = { not: null };
   if (replied === false) where.emailRepliedAt = null;
 
-  const [items, total] = await Promise.all([
-    prisma.lead.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: Math.min(limit, 100),
-      skip: offset,
-    }),
-    prisma.lead.count({ where }),
-  ]);
+  const total = await prisma.lead.count({ where });
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+  const requestedPage =
+    filters.page != null
+      ? Math.max(filters.page, 1)
+      : Math.floor(Math.max(filters.offset ?? 0, 0) / limit) + 1;
+  const page = totalPages > 0 ? Math.min(requestedPage, totalPages) : 1;
+  const offset = (page - 1) * limit;
 
-  return { items, total };
+  const items = await prisma.lead.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    skip: offset,
+  });
+
+  return {
+    items,
+    total,
+    limit,
+    offset,
+    page,
+    totalPages,
+  };
 }
 
 export async function getLeadById(id: string) {

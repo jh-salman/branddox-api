@@ -29,6 +29,7 @@ const updateLeadSchema = z.object({
 const listQuerySchema = z.object({
   limit: z.coerce.number().min(1).max(100).optional(),
   offset: z.coerce.number().min(0).optional(),
+  page: z.coerce.number().min(1).optional(),
   status: z.string().optional(),
   leadSource: z.string().optional(),
   replied: z.enum(['true', 'false']).optional(),
@@ -41,6 +42,7 @@ export async function getAll(req: Request, res: Response) {
   const result = await listLeads({
     limit: query.limit,
     offset: query.offset,
+    page: query.page,
     status: query.status,
     leadSource: query.leadSource,
     replied,
